@@ -1,0 +1,18 @@
+# Node
+node_modules/
+npm-debug.log
+yarn-error.log
+dist/
+coverage/
+
+# Environment
+.env
+.env.*
+
+# IntelliJ / JetBrains
+.idea/
+*.iml
+
+# OS
+.DS_Store
+Thumbs.db
