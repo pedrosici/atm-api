@@ -1,26 +1,41 @@
 import { AccountRepository } from '../../domain/repositories/account.repository';
+import { CardRepository } from '../../domain/repositories/card.repository';
 
 export class WithdrawMoneyUseCase {
-  constructor(private readonly accountRepo: AccountRepository) {}
+  constructor(
+    private readonly accounts: AccountRepository,
+    private readonly cards: CardRepository
+  ) {}
 
-  async execute(accountId: string, amount: number, isSameBank: boolean): Promise<{ success: boolean; message: string }> {
-    const account = await this.accountRepo.findById(accountId);
-    if (!account) return { success: false, message: 'Account not found' };
+  async execute(input: { accountId: string; cardId: string; amount: number; atmBankId: string }) {
+    const { accountId, cardId, amount, atmBankId } = input;
+    if (amount <= 0) throw new Error('INVALID_AMOUNT');
 
-    if (!account.isCardActive) {
-      return { success: false, message: 'Card not active' };
-    }
+    const account = await this.accounts.findById(accountId);
+    if (!account) throw new Error('ACCOUNT_NOT_FOUND');
 
-    const commission = isSameBank ? 0 : this.calculateCommission(amount);
+    const card = await this.cards.findById(cardId);
+    if (!card) throw new Error('CARD_NOT_FOUND');
+    if (card.accountId !== accountId) throw new Error('CARD_ACCOUNT_MISMATCH');
+    if (!card.isActive) throw new Error('CARD_NOT_ACTIVE');
+    if (card.mustChangePin) throw new Error('PIN_CHANGE_REQUIRED');
+    if (amount > card.withdrawLimit) throw new Error('LIMIT_EXCEEDED');
 
-    if (!account.canWithdraw(amount + commission)) {
-      return { success: false, message: 'Insufficient funds or limit exceeded' };
-    }
+    const sameBank = card.bankId === atmBankId;
+    const commission = sameBank ? 0 : this.calculateCommission(amount);
 
-    account.applyWithdrawal(amount, commission);
-    await this.accountRepo.save(account);
+    // Reglas: débito vs crédito
+    const total = amount + commission;
+    const canDebit = account.type === 'debit'
+      ? account.balance >= total
+      : (account.creditLimit ?? 0) - account.balance >= total;
 
-    return { success: true, message: `Withdrawn ${amount} with commission ${commission}` };
+    if (!canDebit) throw new Error('INSUFFICIENT_FUNDS');
+
+    account.balance -= total;
+    await this.accounts.save(account);
+
+    return { success: true, amount, commission, newBalance: account.balance };
   }
 
   private calculateCommission(amount: number): number {

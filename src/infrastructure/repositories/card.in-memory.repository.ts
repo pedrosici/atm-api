@@ -9,8 +9,10 @@ export class CardInMemoryRepository implements CardRepository {
   async findById(cardId: string): Promise<Card | null> {
     return this.cards.find(c => c.id === cardId) ?? null;
   }
+
   async save(card: Card): Promise<void> {
     const i = this.cards.findIndex(c => c.id === card.id);
-    if (i >= 0) this.cards[i] = card; else this.cards.push(card);
+    if (i >= 0) this.cards[i] = card;
+    else this.cards.push(card);
   }
 }
