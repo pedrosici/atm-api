@@ -4,8 +4,8 @@ import { Movement } from '../../domain/entities/movement.entity';
 
 export class AccountInMemoryRepository implements AccountRepository {
   private accounts: Account[] = [
-    new Account('1', 1000, 'debit'),
-    new Account('2', 500, 'credit', 2000)
+    new Account('1', 1000, 'debit', undefined, 6000, true),
+    new Account('2', 500, 'credit', 2000, 6000, true)
   ];
 
   private movements: Movement[] = [
@@ -21,4 +21,11 @@ export class AccountInMemoryRepository implements AccountRepository {
   async getMovements(accountId: string): Promise<Movement[]> {
     return this.movements.filter(m => m.accountId === accountId);
   }
+
+async save(account: Account): Promise<void> {
+  const index = this.accounts.findIndex(a => a.id === account.id);
+  if (index >= 0) {
+    this.accounts[index] = account;
+  }
+}
 }
